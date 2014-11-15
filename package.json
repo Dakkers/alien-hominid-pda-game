@@ -1,0 +1,28 @@
+{
+  "name": "alien-hominid-pda-minigame",
+  "version": "0.1.0",
+  "dependencies": {
+    "express": "^4.10.2",
+    "socket.io": "^1.2.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "description": "a re-creation of Alien Hominid's PDA minigame for modern browsers.",
+  "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/StDako/alien-hominid-pda-game.git"
+  },
+  "keywords": [
+    "melonJS",
+    "HTML5",
+    "game"
+  ],
+  "author": "Dakota St. Laurent",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/StDako/alien-hominid-pda-game/issues"
+  },
+  "homepage": "https://github.com/StDako/alien-hominid-pda-game"
+}

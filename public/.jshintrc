@@ -1,0 +1,13 @@
+{
+  // Details: https://github.com/victorporof/Sublime-JSHint#using-your-own-jshintrc-options
+  // Example: https://github.com/jshint/jshint/blob/master/examples/.jshintrc
+  // Documentation: http://www.jshint.com/docs/options/
+  "browser": true,
+  "esnext": true,
+  "globals": {"me": false, "alert": false, "debugPanel": false, "game": false},
+  "globalstrict": true,
+  "quotmark": false,
+  "strict": false,
+  "undef": true,
+  "unused": true
+}

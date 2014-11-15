@@ -1,0 +1,16 @@
+# node
+node_modules
+npm-debug.log
+
+# non-minified js files
+public/js/vendor/melonJS-1.1.0.js
+public/js/vendor/socketio-1.2.0.js
+public/js/vendor/plugins/debugPanel.js
+
+# images, sound effects, music
+public/data/bgm
+public/data/img
+public/data/sfx
+
+# compiled readme
+README.html
