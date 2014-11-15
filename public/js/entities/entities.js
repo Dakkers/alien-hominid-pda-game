@@ -1,17 +1,11 @@
-/*------------------- 
-a player entity
--------------------------------- */
 game.PlayerEntity = me.Entity.extend({
-
-    /* -----
-    constructor
-    ------ */
 
     init: function(x, y, settings) {
         // call the constructor 
         settings.x = x;
         settings.y = y;
         this._super(me.Entity, 'init', [x, y, settings]);
+        this.id = settings.id;
 
         // animations of sorts
         this.renderable.anim = {};
@@ -21,49 +15,47 @@ game.PlayerEntity = me.Entity.extend({
         this.renderable.addAnimation("death1", [5,6,7,8]);
         this.renderable.setCurrentAnimation("stand");
 
-
         // set up for double jumping
         this.jumpsRemaining = 2;
-
         // player states
         this.dying = false;
-
+        this.states = {left: false, right: false, jump: false, climb: false, dying: false}; // for animation purposes
+        this.stateChanged = false;
         // length of death animation, kinda
         this.deathTimer = 0;
 
-        // set the default horizontal & vertical speed (accel vector)
         this.body.setVelocity(3, 15);
-
-        // set the display to follow our position on both axis
-        me.game.viewport.follow(this.pos, me.game.viewport.AXIS.BOTH);
-
-
     },
  
-    /* -----
-    update the player pos
-    ------ */
     update: function(dt) {
+        var state;
 
+        // don't allow user input during death animation
         if (!this.dying) {
             if (me.input.isKeyPressed('left')) {
-                // flip the sprite on horizontal axis
                 this.flipX(true);
-                // update the entity velocity
                 this.body.vel.x -= this.body.accel.x * me.timer.tick;
+                for (state in this.states)
+                    this.states[state] = false;
+                this.states.left = true;
+                this.stateChanged = true;
 
             } else if (me.input.isKeyPressed('right')) {
-                // unflip the sprite
                 this.flipX(false);
-                // update the entity velocity
                 this.body.vel.x += this.body.accel.x * me.timer.tick;
+                for (state in this.states)
+                    this.states[state] = false;
+                this.states.right = true;
+                this.stateChanged = true;
 
             } else {
                 this.body.vel.x = 0;
+                for (state in this.states)
+                    this.states[state] = false;
+                this.stateChanged = true;
             }
 
             if (me.input.isKeyPressed('jump')) {
-
                 this.jumpsRemaining = (this.body.vel.y === 0) ? 2 : this.jumpsRemaining;
 
                 if (this.jumpsRemaining > 0) {
@@ -71,48 +63,52 @@ game.PlayerEntity = me.Entity.extend({
                     // TODO: use trinary operator to appropriately set the jump velocity.
                     this.body.vel.y -= (this.body.maxVel.y * this.jumpsRemaining--) * me.timer.tick;
                     me.audio.play("jump");
+                    for (state in this.states)
+                        this.states[state] = false;
+                    this.states.jump = true;
+                    this.stateChanged = true;
 
                     if (!this.renderable.isCurrentAnimation("jump"))
                         this.renderable.setCurrentAnimation("jump");
                 }
-
             }
         }
  
         // check & update player movement
         this.body.update(dt);
-
-        // check for collision
         me.collision.check(this, true, this.collideHandler.bind(this), true);
 
-        if (this.dying && this.renderable.anim["death1"].idx == 3) {
+        if (this.dying && this.renderable.anim.death1.idx === 3) {
             this.renderable.animationpause = true;
             this.deathTimer -= me.timer.tick;
 
             if (this.deathTimer <= 0)
                 me.game.world.removeChild(this);
-
         }
 
         // update animation if necessary
         if (this.body.vel.x!=0 || this.body.vel.y!=0 || this.dying) {
-            // update object animation
+            // moving but not falling, jumping, dying --> walking
             if (!this.body.jumping && !this.body.falling && !this.renderable.isCurrentAnimation("walk") && !this.dying) {
                 this.renderable.setCurrentAnimation("walk");
                 this.renderable.setAnimationFrame(0);
             }
-
-            this._super(me.Entity, 'update', [dt]);
-            return true;
+            this.stateChanged = true;
         } else {
             if (!this.renderable.isCurrentAnimation("stand")) {
+                this.stateChanged = true;
                 this.renderable.setCurrentAnimation("stand");
                 this.renderable.setAnimationFrame(0);
             }
         }
+
+        if (this.stateChanged) {
+            game.socket.emit('updatePlayerState', {x: this.pos.x, y: this.pos.y}, this.states);
+            this._super(me.Entity, 'update', [dt]);
+            return true;
+        } 
          
-        // else inform the engine we did not perform
-        // any update (e.g. position, animation)
+        // else inform the engine we did not perform any update (e.g. position, animation)
         return false;
     },
 
@@ -122,13 +118,14 @@ game.PlayerEntity = me.Entity.extend({
                 // bounce!
                 this.body.falling = false;
                 this.body.vel.y = -this.body.maxVel.y * me.timer.tick;
-                // set the jumping flag
                 this.body.jumping = true;
                 // play sound
                 me.audio.play("stomp");
                 // if player has double jumped before stomping, do not allow them to jump again
                 // if player has jumped once or not at all, allow them to jump once
                 this.jumpsRemaining = (this.jumpsRemaining === 0) ? 0 : 1 ;
+            } else {
+                // INSERT DEATH HERE
             }
         }
     },
@@ -141,12 +138,48 @@ game.PlayerEntity = me.Entity.extend({
             this.renderable.setCurrentAnimation("death1");
             this.renderable.setAnimationFrame(0);
             // me.audio.play("player_death");
-
             this.deathTimer = 100;
-
         }
     }
- 
+});
+
+game.OtherPlayerEntity = me.Entity.extend({
+    init: function(x, y, settings) {
+        this._super(me.Entity, 'init', [x, y, settings]);
+        this.id = settings.id;
+
+        // animations of sorts
+        this.renderable.anim = {};
+        this.renderable.addAnimation("stand", [0]);
+        this.renderable.addAnimation("walk", [1, 2]);
+        this.renderable.addAnimation("jump", [3]);
+        this.renderable.addAnimation("death1", [5,6,7,8]);
+        this.renderable.setCurrentAnimation("stand");
+
+        this.state = {};
+    },
+
+    update: function(dt) {
+        this.body.vel.x = 0;
+        this.body.vel.y = 0;
+        if (!Object.keys(this.state).length)
+            return false;
+
+        if (this.state.left) {
+            this.flipX(true);
+            this.renderable.setCurrentAnimation("walk");
+        } else if (this.state.right) {
+            this.flipX(false);
+            this.renderable.setCurrentAnimation("walk");
+        } else if (this.state.jump)
+            this.renderable.setCurrentAnimation("jump");
+        else if (this.state.walk)
+            this.renderable.setCurrentAnimation("stand");
+
+        this.state = {};
+        this._super(me.Entity, 'update', [dt]);
+        return true;
+    }
 });
 
 
@@ -154,33 +187,20 @@ game.CoinEntity = me.CollectableEntity.extend({
     // extending the init function is not mandatory
     // unless you need to add some extra initialization
     init: function(x, y, settings) {
-        // call the parent constructor
         this._super(me.CollectableEntity, 'init', [x, y, settings]);
-
         this.body.onCollision = this.onCollision.bind(this);
     },
 
-    // this function is called by the engine, when
-    // an object is touched by something (here collected)
     onCollision: function() {
-        // do something when collected
-
-        // play sound effect
         me.audio.play("cling");
-
-        // increase score
         game.data.score += 250;
 
         // make sure it cannot be collected "again"
         this.collidable = false;
-        // remove it
         me.game.world.removeChild(this);
     }
 });
 
-/* --------------------------
-an enemy Entity
------------------------- */
 game.EnemyEntity = me.Entity.extend({
     init: function(x, y, settings) {
         // define this here instead of tiled
@@ -195,7 +215,6 @@ game.EnemyEntity = me.Entity.extend({
         settings.spritewidth = settings.width = 64;
         settings.spritewidth = settings.height = 64;
          
-        // call the parent constructor
         this._super(me.Entity, 'init', [x, y , settings]);
          
         // set start/end position based on the initial area size

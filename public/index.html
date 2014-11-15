@@ -46,15 +46,35 @@
             me.video.onresize(null);
           }).defer();
 
-          me.event.subscribe(me.event.WINDOW_ONRESIZE, function (e) {
+          me.event.subscribe(me.event.WINDOW_ONRESIZE, function () {
             window.scrollTo(0, 1);
           });
         }
 
         socket.on('addMainPlayer', function (data) {
-          console.log('ADD-MAIN-PLAYER EVENT RECEIVED');
           game.addMainPlayer(data);
-        })
+        });
+
+        socket.on('addOldPlayers', function(data) {
+          for (var id in data) {
+            if (id != game.mainPlayer.id)
+              game.addEnemy(data[id]);
+          }
+        });
+
+        socket.on('addEnemy', function(data) {
+          game.addEnemy(data);
+        });
+
+        socket.on('updatePlayerState', function(data) {
+          game.updatePlayerState(data);
+        });
+
+        socket.on('playerId', function(playerId) {
+          game.playerId = playerId;
+        });
+
+
       });
     </script>
   </body>
