@@ -19,7 +19,8 @@ game.PlayerEntity = me.Entity.extend({
         this.jumpsRemaining = 2;
         // player states
         this.dying = false;
-        this.states = {left: false, right: false, jump: false, climb: false, dying: false}; // for animation purposes
+        this.states = {left: false, right: false, jump: false, climb: false, dying: false, falling: false}; // for animation purposes
+        this.STATETHING = null;
         this.stateChanged = false;
         // length of death animation, kinda
         this.deathTimer = 0;
@@ -38,7 +39,6 @@ game.PlayerEntity = me.Entity.extend({
                 for (state in this.states)
                     this.states[state] = false;
                 this.states.left = true;
-                this.stateChanged = true;
 
             } else if (me.input.isKeyPressed('right')) {
                 this.flipX(false);
@@ -46,13 +46,10 @@ game.PlayerEntity = me.Entity.extend({
                 for (state in this.states)
                     this.states[state] = false;
                 this.states.right = true;
-                this.stateChanged = true;
 
             } else {
                 this.body.vel.x = 0;
-                for (state in this.states)
-                    this.states[state] = false;
-                this.stateChanged = true;
+                this.states.left = this.states.right = false;
             }
 
             if (me.input.isKeyPressed('jump')) {
@@ -66,7 +63,6 @@ game.PlayerEntity = me.Entity.extend({
                     for (state in this.states)
                         this.states[state] = false;
                     this.states.jump = true;
-                    this.stateChanged = true;
 
                     if (!this.renderable.isCurrentAnimation("jump"))
                         this.renderable.setCurrentAnimation("jump");
@@ -92,6 +88,9 @@ game.PlayerEntity = me.Entity.extend({
             if (!this.body.jumping && !this.body.falling && !this.renderable.isCurrentAnimation("walk") && !this.dying) {
                 this.renderable.setCurrentAnimation("walk");
                 this.renderable.setAnimationFrame(0);
+            } else if (this.body.falling) {
+                this.states.jump = false;
+                this.states.falling = true;
             }
             this.stateChanged = true;
         } else {
@@ -99,10 +98,13 @@ game.PlayerEntity = me.Entity.extend({
                 this.stateChanged = true;
                 this.renderable.setCurrentAnimation("stand");
                 this.renderable.setAnimationFrame(0);
+                for (state in this.states)
+                        this.states[state] = false;
             }
         }
 
         if (this.stateChanged) {
+            console.log(this.states);
             game.socket.emit('updatePlayerState', {x: this.pos.x, y: this.pos.y}, this.states);
             this._super(me.Entity, 'update', [dt]);
             return true;
@@ -160,8 +162,8 @@ game.OtherPlayerEntity = me.Entity.extend({
     },
 
     update: function(dt) {
-        this.body.vel.x = 0;
-        this.body.vel.y = 0;
+        console.log(this.state);
+
         if (!Object.keys(this.state).length)
             return false;
 
@@ -177,6 +179,7 @@ game.OtherPlayerEntity = me.Entity.extend({
             this.renderable.setCurrentAnimation("stand");
 
         this.state = {};
+        this.updateBounds();
         this._super(me.Entity, 'update', [dt]);
         return true;
     }

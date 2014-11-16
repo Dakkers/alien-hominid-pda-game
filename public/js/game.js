@@ -35,7 +35,7 @@ var game = {
         me.state.set(me.state.PLAY, new game.PlayScreen());
 
         me.pool.register("mainPlayer", game.PlayerEntity);
-        me.pool.register("otherPlayer", game.OtherPlayerEntity);
+        me.pool.register("OtherPlayer", game.OtherPlayerEntity);
         me.pool.register("CoinEntity", game.CoinEntity);
         me.pool.register("EnemyEntity", game.EnemyEntity);
          
@@ -50,7 +50,6 @@ var game = {
     "updatePlayerState": function(data) {
         var player = this.players[data.id];
         if (player) {
-            console.log(player);
             player.state = data.state;
             player.pos.x = data.pos.x;
             player.pos.y = data.pos.y;
@@ -82,9 +81,8 @@ var game = {
         if (!data || this.players[data.id])
             return;
 
-        console.log(data);
-
         var newPlayer = me.pool.pull('OtherPlayer', data.pos.x, data.pos.y, {
+            name: 'OtherPlayer',
             image: 'chara1',
             width: 32,
             height: 32,
